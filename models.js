@@ -6,6 +6,7 @@ var TalkType = 'cms_meeting cms_workshop public_national public_international in
 
 var TalkSchema = new Schema({
     title: String,
+    venue: String,
     location: String,
     type: {type: String, enum: TalkType},
     date: {type: Date, default: Date.now},

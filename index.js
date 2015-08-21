@@ -15,15 +15,19 @@ function postTalk(req, res, next) {
         return res.sendUnauthenticated();
     }
 
-    if (! req.params.title) {
+    if (! req.body.title) {
         return next(new restify.MissingParameterError("Parameter 'title' is missing"));
     }
 
-    if (! req.params.location) {
+    if (! req.body.venue) {
+        return next(new restify.MissingParameterError("Parameter 'venue' is missing"));
+    }
+
+    if (! req.body.location) {
         return next(new restify.MissingParameterError("Parameter 'location' is missing"));
     }
 
-    if (! req.params.type) {
+    if (! req.body.type) {
         return next(new restify.MissingParameterError("Parameter 'type' is missing"));
     }
 
@@ -32,17 +36,18 @@ function postTalk(req, res, next) {
     }
 
 
-    if (models.TalkType.indexOf(req.params.type) == -1) {
+    if (models.TalkType.indexOf(req.body.type) == -1) {
         return next(new restify.InvalidArgumentError("Parameter 'type' is invalid"));
     }
 
     var talk = new models.TalkModel();
-    talk.title = req.params.title;
-    talk.type = req.params.type;
-    talk.location = req.params.location;
+    talk.title = req.body.title;
+    talk.venue = req.body.venue;
+    talk.type = req.body.type;
+    talk.location = req.body.location;
 
-    if ((req.params.day) && (req.params.month) && (req.params.year)) {
-        talk.date = new Date(req.params.year, req.params.month, req.params.day); 
+    if (req.body.date) {
+        talk.date = new Date(req.body.date);
     }
 
     // Store file into GridFS
@@ -90,6 +95,23 @@ function getTalks(req, res, next) {
     });
 }
 
+function deleteTalk(req, res, next) {
+    if (!req.user) {
+        return res.sendUnauthenticated();
+    }
+
+    if (! req.params.id) {
+        return next(new restify.MissingParameterError("Parameter 'id' is missing"));
+    }
+
+    id = req.params.id;
+
+    models.TalkModel.remove({_id: id}, function(err) {
+        next.ifError(err);
+        res.json({id: id});
+    });
+}
+
 function downloadFile(req, res, next) {
     if (!req.user) {
         return res.sendUnauthenticated();
@@ -118,30 +140,35 @@ function downloadFile(req, res, next) {
 function devAddUser(req, res, next) {
 
     user = new models.User();
-    user.email = req.params.email;
+    user.email = req.body.email;
 
     // Get salt
     var salt = crypto.randomBytes(256).toString('hex');
     user.salt = salt;
 
-    hooks.hash(req.params.secret, salt, function(err, key) {
+    hooks.hash(req.body.secret, salt, function(err, key) {
         user.secret = key.toString('hex');
 
         user.save(function(err) {
             next.ifError(err);
+            console.info("New user " + user.email + " added.");
             res.end();
         });
     });
 }
 
+restify.CORS.ALLOW_HEADERS.push('authorization');
+
 var server = restify.createServer();
 server.use(restify.authorizationParser());
-server.use(restify.bodyParser());
+server.use(restify.bodyParser({ mapParams: false }));
+server.use(restify.CORS());
 restifyOAuth2.cc(server, {tokenEndpoint: '/token', hooks: hooks});
 
 server.post('/talk', postTalk);
 server.get('/talks', getTalks);
 server.get('/download/:id', downloadFile);
+server.del('/talk/:id', deleteTalk);
 
 if (process.env.NODE_ENV == 'development') {
     server.post('/dev/user', devAddUser);
