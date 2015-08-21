@@ -10,6 +10,14 @@ Grid.mongo = mongoose.mongo;
 
 var models = require('./models');
 
+// Read configuration
+var config = {};
+if (process.env.NODE_ENV === 'development') {
+    config = JSON.parse(fs.readFileSync('./config/dev.json', 'utf8'));
+} else {
+    config = JSON.parse(fs.readFileSync('./config/prod.json', 'utf8'));
+}
+
 function postTalk(req, res, next) {
     if (!req.user) {
         return res.sendUnauthenticated();
@@ -175,7 +183,7 @@ if (process.env.NODE_ENV == 'development') {
 }
 
 // Open DB connection
-mongoose.connect('mongodb://localhost/talks')
+mongoose.connect('mongodb://' + config.DB_HOST + ':' + config.DB_PORT + '/' + config.DB_NAME);
 
 var db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
