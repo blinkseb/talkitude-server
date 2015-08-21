@@ -185,10 +185,13 @@ if (process.env.NODE_ENV == 'development') {
 // Open DB connection
 mongoose.connect('mongodb://' + config.DB_HOST + ':' + config.DB_PORT + '/' + config.DB_NAME);
 
+var bind_ip = config.BIND_IP || '::';
+var bind_port = config.BIND_PORT || 8080;
+
 var db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
 db.once('open', function (callback) {
-    server.listen(8080, function() {
+    server.listen(bind_port, bind_ip, function() {
       console.log('Listening at %s', server.url);
       console.log('Talkitude is up and running!');
     });
