@@ -1,6 +1,12 @@
 {
     "DB_HOST": "10.10.10.1",
     "DB_PORT": 27017,
-    "DB_NAME": "talks"
+    "DB_NAME": "talks",
+
+    "UID": "www-data",
+    "GID": "www-data",
+
+    "SSL_KEY": "ssl/talkitude.key",
+    "SSL_CERTIFICATE": "ssl/talkitude.crt"
 }
 

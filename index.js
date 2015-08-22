@@ -167,7 +167,22 @@ function devAddUser(req, res, next) {
 
 restify.CORS.ALLOW_HEADERS.push('authorization');
 
-var server = restify.createServer();
+
+// Get SSL certificate
+
+var use_https = process.env.NODE_ENV !== 'development';
+
+var https_options = {};
+
+if (use_https) {
+    https_options = {
+        key: fs.readFileSync(config.SSL_KEY),
+        certificate: fs.readFileSync(config.SSL_CERTIFICATE)
+    };
+}
+
+var server = restify.createServer(https_options);
+
 server.use(restify.authorizationParser());
 server.use(restify.bodyParser({ mapParams: false }));
 server.use(restify.CORS());
@@ -182,25 +197,33 @@ if (process.env.NODE_ENV == 'development') {
     server.post('/dev/user', devAddUser);
 }
 
+console.info('Connecting to database...');
+
 // Open DB connection
 mongoose.connect('mongodb://' + config.DB_HOST + ':' + config.DB_PORT + '/' + config.DB_NAME);
 
 var bind_ip = config.BIND_IP || '::';
 var bind_port = config.BIND_PORT || 8080;
 
-var nodeUserUid = config.UID || 'www-data';
-var nodeUserGid = config.GID || 'www-data';
+var drop_privileges = process.env.NODE_ENV !== 'development' && config.UID && config.GID;
+var nodeUserUid = config.UID;
+var nodeUserGid = config.GID;
 
 var db = mongoose.connection;
 db.on('error', console.error.bind(console, 'connection error:'));
 db.once('open', function (callback) {
+    console.info('Connected.\n');
     server.listen(bind_port, bind_ip, function() {
-      if (process.env.NODE_ENV != 'development' && nodeUserUid && nodeUserGid) {
-        console.log('Running as ' + nodeUserUid + ':' + nodeUserGid);
+      if (drop_privileges) {
+        console.info('Dropping privileges: running as ' + nodeUserUid + ':' + nodeUserGid);
         process.setgid(nodeUserGid);
         process.setuid(nodeUserUid);
       }
-      console.log('Listening at %s', server.url);
-      console.log('Talkitude is up and running!');
+
+      console.info();
+      console.info('Listening at %s', server.url);
+      console.info('Talkitude is up and running! Waiting for requests...');
     });
+
+    server.on('error', console.error.bind(console, 'server error:'));
 });
